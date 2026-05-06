@@ -18,6 +18,9 @@ from app.models import Tenant
 from app.database import Base
 target_metadata = Base.metadata
 
+DATABASE_URL = os.getenv("DATABASE_URL", "").replace("postgresql+asyncpg://", "postgresql://")
+config.set_main_option("sqlalchemy.url", DATABASE_URL)
+
 def run_migrations_offline() -> None:
     url = config.get_main_option("sqlalchemy.url")
     context.configure(

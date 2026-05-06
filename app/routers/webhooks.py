@@ -10,7 +10,7 @@ from typing import List
 
 router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
 
-@router.post("/", response_model=WebhookResponse)
+@router.post("", response_model=WebhookResponse)
 async def register_webhook(
     data: WebhookCreate,
     db: AsyncSession = Depends(get_db),
@@ -26,7 +26,7 @@ async def register_webhook(
     await db.refresh(webhook)
     return webhook
 
-@router.get("/", response_model=List[WebhookResponse])
+@router.get("", response_model=List[WebhookResponse])
 async def list_webhooks(
     db: AsyncSession = Depends(get_db),
     current_tenant: Tenant = Depends(get_current_tenant)

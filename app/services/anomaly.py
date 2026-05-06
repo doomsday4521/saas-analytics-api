@@ -1,13 +1,11 @@
-from google import genai
+from groq import Groq
 import os
-import asyncio
 import json
-import re
 from dotenv import load_dotenv
 
 load_dotenv()
 
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 async def detect_anomalies(usage_data: list[dict]) -> dict:
     if not usage_data:
@@ -32,7 +30,7 @@ Look for:
 Usage logs:
 {formatted}
 
-Respond in this exact JSON format:
+Respond ONLY in this exact JSON format, no extra text:
 {{
     "anomalies": [
         {{
@@ -47,15 +45,11 @@ Respond in this exact JSON format:
 """
 
     try:
-        response = await asyncio.get_event_loop().run_in_executor(
-            None,
-            lambda: client.models.generate_content(
-                model="gemini-2.0-flash",
-                contents=prompt
-            )
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": prompt}],
+            response_format={"type": "json_object"}
         )
-        text = response.text.strip()
-        match = re.search(r'\{.*\}', text, re.DOTALL)
-        return json.loads(match.group()) if match else {"anomalies": [], "summary": "No response"}
+        return json.loads(response.choices[0].message.content)
     except Exception as e:
         return {"anomalies": [], "summary": f"Detection failed: {str(e)}"}

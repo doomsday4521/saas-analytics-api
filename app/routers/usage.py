@@ -43,7 +43,6 @@ async def log_usage(
     rate = await check_rate_limit(api_key.tenant_id, plan.monthly_limit)
 
     if rate["in_overage"]:
-        # Notify but don't block — tenant pays for overage
         await trigger_webhooks(db, api_key.tenant_id, "usage.limit.exceeded", {
             "event": "usage.limit.exceeded",
             "tenant_id": api_key.tenant_id,
@@ -81,13 +80,24 @@ async def get_anomalies(
     db: AsyncSession = Depends(get_db),
     current_tenant: Tenant = Depends(get_current_tenant)
 ):
+    from datetime import datetime, timezone
+    
+    now = datetime.now(timezone.utc)
+    period_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
     result = await db.execute(
         select(UsageLog)
-        .where(UsageLog.tenant_id == current_tenant.id)
+        .where(
+            UsageLog.tenant_id == current_tenant.id,
+            UsageLog.created_at >= period_start,
+            UsageLog.created_at <= now
+        )
         .order_by(UsageLog.created_at.desc())
-        .limit(limit)
     )
     logs = result.scalars().all()
+
+    if not logs:
+        return {"anomalies": [], "summary": "No usage data for this billing period"}
 
     usage_data = [
         {
@@ -152,3 +162,16 @@ async def get_usage_logs(
 
     result = await db.execute(query)
     return result.scalars().all()
+
+
+@router.get("/count")
+async def get_usage_count(
+    db: AsyncSession = Depends(get_db),
+    current_tenant: Tenant = Depends(get_current_tenant)
+):
+    result = await db.execute(
+        select(func.count(UsageLog.id)).where(
+            UsageLog.tenant_id == current_tenant.id
+        )
+    )
+    return {"total": result.scalar()}

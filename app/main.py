@@ -39,7 +39,7 @@ async def seed_plans():
         result = await db.execute(select(BillingPlan))
         existing = result.scalars().all()
         if existing:
-            return  # already seeded, skip
+            return 
 
         plans = [
             BillingPlan(name="Free", plan_type=PlanType.free, monthly_limit=1000, price_per_unit=0.0, base_price=0.0),

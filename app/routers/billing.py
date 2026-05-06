@@ -98,7 +98,6 @@ async def generate_invoice(
     now = datetime.now(timezone.utc)
     period_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-    # Check if invoice already exists for this period
     existing_result = await db.execute(
         select(Invoice).where(
             Invoice.tenant_id == current_tenant.id,
@@ -109,7 +108,6 @@ async def generate_invoice(
 
     if existing:
         if existing.status == InvoiceStatus.draft:
-            # Delete old draft line items and invoice to regenerate fresh
             await db.execute(
                 select(InvoiceLineItem).where(InvoiceLineItem.invoice_id == existing.id)
             )
@@ -123,7 +121,6 @@ async def generate_invoice(
         else:
             raise HTTPException(status_code=400, detail="Invoice already finalized for this period")
 
-    # Fetch all plan periods that touched this calendar month
     plans_result = await db.execute(
         select(TenantPlan, BillingPlan)
         .join(BillingPlan, TenantPlan.plan_id == BillingPlan.id)
@@ -142,7 +139,6 @@ async def generate_invoice(
     if not plan_periods:
         raise HTTPException(status_code=404, detail="No plan found for this billing period")
 
-    # Days in this calendar month
     next_month = (now.replace(day=1) + timedelta(days=32)).replace(day=1)
     days_in_month = (next_month - period_start).days
 
@@ -183,7 +179,6 @@ async def generate_invoice(
             "chunk_total": chunk_total
         })
 
-    # Create as draft
     invoice = Invoice(
         tenant_id=current_tenant.id,
         plan_id=plan_periods[-1][1].id,
@@ -262,7 +257,6 @@ async def list_invoices(
     )
     invoices = invoices_result.scalars().all()
 
-    # Attach line items to each invoice
     for invoice in invoices:
         line_items_result = await db.execute(
             select(InvoiceLineItem).where(InvoiceLineItem.invoice_id == invoice.id)
